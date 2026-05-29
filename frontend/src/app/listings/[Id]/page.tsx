@@ -8,24 +8,29 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 export default function ListingDetailPage() {
-  const { id }    = useParams();
-  const router    = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
+  const router = useRouter();
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+
     const fetchListing = async () => {
       try {
         const res = await api.get(`/listings/${id}`);
         setListing(res.data.listing);
-      } catch {
-        toast.error('Listing not found');
-        router.push('/listings');
+      } catch (err: any) {
+        setError(true);
+        toast.error(err.response?.data?.message || 'Listing not found');
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchListing();
+
+    fetchListing();
   }, [id]);
 
   if (loading) {
@@ -36,7 +41,16 @@ export default function ListingDetailPage() {
     );
   }
 
-  if (!listing) return null;
+  if (error || !listing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-gray-500 gap-4">
+        <p>Listing not found.</p>
+        <Link href="/listings" className="text-gray-900 font-medium hover:underline text-sm">
+          ← Back to listings
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -64,12 +78,16 @@ export default function ListingDetailPage() {
           <div className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">{listing.title}</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  {listing.title}
+                </h1>
                 <p className="text-sm text-gray-500 mt-1 capitalize">
                   {listing.category} · {listing.condition}
                 </p>
               </div>
-              <span className="text-2xl font-bold text-gray-900">₹{listing.price}</span>
+              <span className="text-2xl font-bold text-gray-900">
+                ₹{listing.price}
+              </span>
             </div>
 
             <p className="text-gray-600 text-sm leading-relaxed mb-6">
@@ -80,11 +98,12 @@ export default function ListingDetailPage() {
               <p className="text-sm text-gray-500">
                 Posted by{' '}
                 <span className="font-medium text-gray-900">
-                  {listing.seller?.displayName}
+                  {listing.seller?.displayName || 'Unknown'}
                 </span>
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                {listing.views} views · Posted {new Date(listing.createdAt).toLocaleDateString()}
+                {listing.views} views · Posted{' '}
+                {new Date(listing.createdAt).toLocaleDateString()}
               </p>
             </div>
 
