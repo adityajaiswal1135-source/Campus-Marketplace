@@ -2,15 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { Listing } from '@/lib/types';
+import { Listing, User } from '@/lib/types';
 import { toast } from 'sonner';
 
 export default function ListingsPage() {
+  const router = useRouter();
   const [listings, setListings]   = useState<Listing[]>([]);
   const [loading, setLoading]     = useState(true);
   const [category, setCategory]   = useState('');
   const [search, setSearch]       = useState('');
+  const [user, setUser]           = useState<User | null>(null);
+
+  // Fetch current logged in user
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data.user);
+      } catch {
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const fetchListings = async () => {
     setLoading(true);
@@ -18,7 +34,6 @@ export default function ListingsPage() {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
       if (search)   params.append('search', search);
-
       const res = await api.get(`/listings?${params.toString()}`);
       setListings(res.data.listings);
     } catch {
@@ -30,6 +45,17 @@ export default function ListingsPage() {
 
   useEffect(() => { fetchListings(); }, [category]);
 
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+      setUser(null);
+      toast.success('Logged out successfully');
+      router.push('/');
+    } catch {
+      toast.error('Logout failed');
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Navbar */}
@@ -37,19 +63,49 @@ export default function ListingsPage() {
         <Link href="/" className="text-lg font-semibold text-gray-900">
           Campus Marketplace
         </Link>
-        <div className="flex gap-3">
-          <Link
-            href="/listings/new"
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
-          >
-            + Post Listing
-          </Link>
-          <Link
-            href="/login"
-            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
-          >
-            Login
-          </Link>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              <span className="text-sm text-gray-600">
+                Hi, <span className="font-medium text-gray-900">{user.displayName}</span>
+              </span>
+              <Link
+                href="/listings/new"
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
+              >
+                + Post Listing
+              </Link>
+              {user.role === 'admin' && (
+                <Link
+                  href="/dashboard"
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+                >
+                  Admin
+                </Link>
+              )}
+              <button
+                onClick={handleLogout}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/listings/new"
+                className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
+              >
+                + Post Listing
+              </Link>
+              <Link
+                href="/login"
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+              >
+                Login
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
